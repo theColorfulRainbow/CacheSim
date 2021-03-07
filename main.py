@@ -11,7 +11,7 @@ log.debug('Finished importing')
 def main():
     log.info('RUNNING ORIGINAL')
     trace_files_dir = 'TraceFiles'
-    trace_file_path = os.path.join(trace_files_dir,'file2.txt')
+    trace_file_path = os.path.join(trace_files_dir,'file1.txt')
     simulator = Simulator(logger_=log)
     simulator.run(trace_file_path)
 
@@ -23,4 +23,4 @@ def main_extra():
     simulator.run(trace_file_path)
 
 if __name__ == "__main__":
-    main_extra()
+    main()

@@ -21,3 +21,7 @@ Some technical stuff
 - One Hop between Processors:                 3 cycle(s)
 - One Hop between a Processor and Directory:  5 cycle(s)
 - Memory Access latency:                      15 cycle(s)
+
+### How to use
+- to run full simulation: "python main.py"
+- tun run tests: "python -m unittest discover Tests"
