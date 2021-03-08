@@ -4,6 +4,7 @@
 # import logging as log
 from Source_extra.cache import Cache, LineState, CacheLine
 from Source_extra.tracker import Tracker
+from Source_extra.utils import *
 
 class MemoryController():
 
@@ -27,7 +28,7 @@ class MemoryController():
         # -- directory access
         self._dir_access()
         # -- find all and furthest sharer
-        sharer_ids, sharer_id_furthest, hops = self._find_sharers_read(cache_id=cache_id, address=address)
+        sharer_ids, sharer_id_furthest, hops = self._find_sharers(cache_id=cache_id, address=address, instruction='R')
         # -- no sharers == 0
         if len(sharer_ids)==0:
             # <!> set set cache line state
@@ -66,9 +67,8 @@ class MemoryController():
         """
         # -- directory access
         self._dir_access()
-
         # -- find all and furthest sharers
-        sharer_ids, sharer_id_furthest, hops = self._find_sharers_write(cache_id=cache_id, address=address)
+        sharer_ids, sharer_id_furthest, hops = self._find_sharers(cache_id=cache_id, address=address, instruction='R')
         # -- no sharers == 0
         if len(sharer_ids)==0:
             # -- SHARED ?
@@ -81,8 +81,7 @@ class MemoryController():
                 self._propragate_write_miss(sharer_ids=sharer_ids, cache_id=cache_id, address=address)    
                 return
             # -- INVALID ?
-            elif state==LineState.INVALID or state==LineState.MODIFIED \
-                    or state==LineState.EXCLUSIVE:
+            elif state!=LineState.SHARED:
                 # -- directory receives data from mem: 15 cycles 
                 self._fetch_from_mem()
                 # -- send data to current cache: 5 cycles
@@ -95,8 +94,7 @@ class MemoryController():
             # <!> invalid state 
             else:
                 raise ValueError('MEMORY CONTROLLER WRITE MISS\nNO SHARERS\nNOT ACCOUNTED FOR STATE: {}'.format(state))
-            
-        # -- no sharers == 1
+        # -- nr sharers == 1
         elif (len(sharer_ids)==1) and (state!=LineState.SHARED):
             # -- send message to invalidate and forward when one sharer only
             self._message_furthest_to_forward_write_single(sharer_id_furthest=sharer_id_furthest, address=address, hops=hops)
@@ -105,7 +103,7 @@ class MemoryController():
             # -- send invalidations
             self._propragate_write_miss(sharer_ids=sharer_ids, cache_id=cache_id, address=address)
             return
-        # -- no sharers > 1 
+        # -- nr sharers > 1 
         elif (len(sharer_ids)>1) or (state==LineState.SHARED):
             # -- send message to invalidate and forward when one sharer only
             self._message_furthest_to_forward_write_multi(sharer_id_furthest=sharer_id_furthest, address=address, hops=hops)
@@ -145,12 +143,13 @@ class MemoryController():
         self.tracker.add_total_latency(latency=1)
 
 
-    def _find_sharers_read(self, cache_id: int, address: int):
+    def _find_sharers(self, cache_id:int, address:int,instruction:str):
         """Finds shareres ids and the furthest sharer
 
         Args:
             cache_id (int): current cache id (gets skipped)
             address (int): current address
+            instruction (str): Read (R) or Write (W)
 
         Returns:
             list: lsit of sharer ids, futhest sharer id, no of hops
@@ -161,24 +160,10 @@ class MemoryController():
                 if cache.check_match(address=address):
                     sharer_ids.append(cache.id)
         sharer_id_furthest, hops = self._find_furthest_sharer(cache_id=cache_id, sharer_ids=sharer_ids)
+        self._track_miss(instruction=instruction, nr_sharers=len(sharer_ids), hops=hops)
+        hops = 1 if (hops==3 and FLOPS==True) else hops
         return sharer_ids, sharer_id_furthest, hops
-    
-
-    def _find_sharers_write(self, cache_id:int, address:int):
-        """Fids sharers ids and furthest one along with how many hos it takes
-
-        Args:
-            cache_id (int): current cache id
-            address (int): current address 
-        """
-        sharer_ids = []
-        for cache in self.caches:
-            if cache.id != cache_id:
-                if cache.check_match(address=address):
-                    sharer_ids.append(cache.id)
-        sharer_id_furthest, hops = self._find_furthest_sharer(cache_id=cache_id, sharer_ids=sharer_ids)
-        return sharer_ids, sharer_id_furthest, hops
-    
+      
 
     def _find_furthest_sharer(self, cache_id:int, sharer_ids:list):
         """Finds the furthes share given a lsit of shareres
@@ -199,7 +184,49 @@ class MemoryController():
             hops = max(hops_list)
             sharer_id_furthest = sharer_ids[hops_list.index(hops)]
             return sharer_id_furthest, hops
-        
+    
+
+    def _track_miss(self, instruction:str, nr_sharers:int, hops:int):
+        """Tracks number of hops & nr sharers on an instruction miss  
+
+        Args:
+            instruciton (str): Read (R); Write (W)
+            nr_sharers (int): number of shrers 
+            hops (int): number of hops to perform
+        """
+        self._track_hops(hops=hops)
+        if (nr_sharers==0):
+            if (instruction=='R'):
+                self.tracker.read_miss_no_sharers += 1
+                return
+            elif (instruction=='W'):
+                self.tracker.write_miss_no_sharers += 1
+                return
+            else:
+                return ValueError("INVALID INSTRUCTION TYPE")
+        elif (nr_sharers<0):
+            raise ValueError("CAN NOT HAVE NEGATIVE NR SHARERS: {}".format(nr_sharers))
+
+    def _track_hops(self, hops:int):
+        """tracks how many hops are performed
+
+        Args:
+            nr_hops (int): nr of hops to make 
+        """
+        if(hops==0 or hops==None):
+            return
+        elif(hops==1):
+            self.tracker.hops_1 += 1
+            return
+        elif(hops==2):
+            self.tracker.hops_2 += 1
+            return
+        elif(hops==3):
+            self.tracker.hops_3 += 1
+            return
+        else:
+            raise ValueError("INVALID NUMBER OF HOPS: {}".format(hops))
+
 
     def _fetch_from_mem(self):
         """Simulates taking data from mem

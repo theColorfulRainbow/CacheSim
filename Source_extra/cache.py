@@ -1,7 +1,6 @@
 import collections, enum
 from Source_extra.utils import *
 from Source_extra.tracker import Tracker
-# import logging as log 
 
 class LineState(enum.Enum):
     """Class holding possible states of a cache
@@ -12,8 +11,12 @@ class LineState(enum.Enum):
     Returns:
         [Enum]: possible LineState
     """
-    MODIFIED, SHARED, INVALID, EXCLUSIVE = range(4)                                    # MSI --> 012
- 
+    if MESI==True:
+        MODIFIED, SHARED, INVALID, EXCLUSIVE = range(4)                                     # MESI --> 0123
+    else:
+        MODIFIED, SHARED, INVALID = range(3)                                                # MESI --> 012
+        EXCLUSIVE = SHARED                                                                  
+
     def to_str(self,state):
         if(state==LineState.MODIFIED):
             return "MODIFIED"
@@ -31,7 +34,7 @@ class CacheLine():
     Keeps track of the address tag and state of the Cache Line
     """
     def __init__(self):
-        self.address_tag, self._lastState, self._currentState, self.written = None, None, LineState.INVALID, False
+        self.address_tag, self._lastState, self._currentState = None, None, LineState.INVALID
         self.first_access = True                                                                    # detect compulsoty misses
 
     @property
@@ -48,8 +51,8 @@ class CacheLine():
         return self._lastState
     
     def __repr__(self):
-        return '[tag={};written={},state_now={},state_before={}]'.format(
-            self.address_tag, self.written, self.currentState, self.lastState)
+        return '[tag={};state_now={},state_before={}]'.format(
+            self.address_tag, self.currentState, self.lastState)
 
 class Cache():
 
@@ -93,36 +96,25 @@ class Cache():
         # -- probe cache to match tag and check state
         tag, line_id, offset = self._probe_cache(address=address)
         cache_line = self.lines[line_id]                                                            # cache line from addresss
-        # >> check compulsory miss
-        if(cache_line.first_access==True):
-            self.tracker.compulsory_miss += 1                                                       # >> compulsory miss 
-            cache_line.first_access = False                                                         # >> already accesed
-        # -- check if tag hit
-        tag_hit = (tag==cache_line.address_tag)                                                     # do tags match
-        # -- check if it's a replacement writeback
-        if(tag!=cache_line.address_tag and cache_line.currentState==LineState.MODIFIED):
-            self.tracker.replacement_writebacks_i = 1
+        # -- >> gather stats
+        tag_hit = self._check_miss_type(instruction='R', cache_line=cache_line, tag=tag)
         # -- READ PROTOCOL
         if (cache_line.currentState==LineState.INVALID) or (tag_hit==False):                        # line is Invalid --> miss
             # -- memory request data to read
             self._read_request_data(cache_line=cache_line, address=address)
             # -- probe cache to change state
-            self._probe_cache(address=address)
-            # cache_line.currentState  = LineState.SHARED          # <!> DEBUG <!> DEALT BY MEM CONTROLLER
-            cache_line.address_tag   = tag
+            self._probe_and_change_state(instruction='R',address=address,cache_line=cache_line, tag=tag)
             # -- read data from local cache
             self._read_data()
             # -- done command
             return tag_hit                                                                          # miss
-        elif (cache_line.currentState==LineState.SHARED \
-                or cache_line.currentState==LineState.MODIFIED \
-                or cache_line.currentState==LineState.EXCLUSIVE) and (tag_hit==True):
+        elif (cache_line.currentState!=LineState.INVALID) and (tag_hit==True):
             # -- read data from local cache
             self._read_data()
             # -- set new tag at address
             cache_line.address_tag = tag
-            # > private access
-            self.tracker.private_accesses_i = 1
+            # > track hit
+            self._track_hit(instruction='R')
             return tag_hit                                                                          # hit
         else :                                                                                      # invalid state 
             raise ValueError('Invalid state: {}; at cache line: {}'.format(cache_line.currentState,line_id))
@@ -143,52 +135,33 @@ class Cache():
         # -- probe cache to match tag and check state
         tag, line_id, offset = self._probe_cache(address=address)                                   # -- probe cache
         cache_line = self.lines[line_id]                                                            # get cache line from address
-        # >> check compulsory miss
-        if(cache_line.first_access==True):
-            self.tracker.compulsory_miss += 1                                                       # >> compulsory miss 
-            cache_line.first_access = False                                                         # >> already accesed
-        # -- check if tag hit
-        tag_hit = tag==cache_line.address_tag                                                       # do tags match
-        # -- check if it's a replacement writeback
-        if(tag!=cache_line.address_tag and cache_line.currentState==LineState.MODIFIED):
-            self.tracker.replacement_writebacks_i = 1
-        # >> check if conflict miss
-        if ((tag_hit==False) and (cache_line.currentState==LineState.MODIFIED 
-                or cache_line.currentState==LineState.SHARED) and cache_line.first_access==False):
-            self.tracker.conflict_miss +=1 
+        # -- >> gather stats
+        tag_hit = self._check_miss_type(instruction='W',cache_line=cache_line,tag=tag)
         # -- WRITE protocol
         if (cache_line.currentState==LineState.INVALID) or (tag_hit==False):                        # INVALID state or tag missmatch
             # -- message direcotry to invalidate copies
             self._invalidate_copies(address=address, cache_line=cache_line)
             # -- probe local to change state
-            self._probe_cache(address=address)
-            cache_line.currentState = LineState.MODIFIED
-            cache_line.address_tag  = tag
+            self._probe_and_change_state(instruction='W',address=address,cache_line=cache_line, tag=tag)
             # -- write data to local cache
             self._write_to_local()
-            # > not private access
-            self.tracker.private_accesses_i = 0
             return False                                                                            # miss
         elif (cache_line.currentState==LineState.SHARED):                                           # SHARED state
             # -- message direcotry to invalidate copies 
             self._invalidate_copies(address=address, cache_line=cache_line)
             # -- probe local to change state
-            self._probe_cache(address=address)
-            cache_line.currentState = LineState.MODIFIED
-            cache_line.address_tag   = tag 
+            self._probe_and_change_state(instruction='W',address=address,cache_line=cache_line, tag=tag)
             # -- write data to local cache
             self._write_to_local()
-            # > not private access
-            self.tracker.private_accesses_i = 0
             return False                                                                            # miss
         elif(cache_line.currentState==LineState.MODIFIED \
                 or cache_line.currentState==LineState.EXCLUSIVE) and (tag_hit==True):               # MODIFIED state and tag match
             # <!> always set to MODIFIED
-            cache_line.currentState = LineState.MODIFIED                                            # always in lodified state
+            cache_line.currentState = LineState.MODIFIED                                            # always in Modified state
             # -- write data to local cache
             self._write_to_local()
-            # > not private access
-            self.tracker.private_accesses_i = 1
+            # > track stats
+            self._track_hit(instruction='W')
             return True                                                                             # hit
         else:                                                                                       # invalid stats
             raise ValueError('Invalid state: {}; at cache line: {}'.format(cache_line.currentState,line_id))
@@ -270,6 +243,26 @@ class Cache():
         self._send_data(hops=hops)
 
 
+    def _track_hit(self, instruction:str):
+        """tracks private accesses, read and write hit
+
+        Args:
+            instruction (str): Instruction type; Read (R) & Write (W)
+
+        Raises:
+            ValueError: invalid instruciton type
+        """
+        self.tracker.private_accesses_i = 1
+        if(instruction=='W'):
+            self.tracker.write_hit += 1
+            return
+        elif(instruction=='R'):
+            self.tracker.read_hit += 1
+            return
+        else:
+            raise ValueError("INVALID INSTRUCTION TYPE")
+
+
     def _invalidate_copies(self, address: int, cache_line: CacheLine):
         """Send message to directory to invalidate other copies
         5 cycles
@@ -277,6 +270,7 @@ class Cache():
             address (int): current address
             cache_line (CacheLine): current cacahe line
         """
+        self.tracker.write_miss += 1
         self.tracker.add_total_latency(latency=5)                                                   # add latency
         self.memory_controller.write_miss(cache_id=self.id, address=address,                        # hop to directory
                                             state=cache_line.currentState)                             
@@ -296,6 +290,7 @@ class Cache():
         Args:
             cache_line (CacheLine): cacheline of address
         """
+        self.tracker.read_miss += 1
         self.tracker.add_total_latency(latency=5)                                                   # add latency
         self.memory_controller.read_miss(cache_id=self.id, address=address, cache_line=cache_line)  # hop to directory
 
@@ -324,3 +319,65 @@ class Cache():
         self.tracker.add_total_latency(latency=hops*3)                                              # add latency
 
 
+    def _check_miss_type(self, instruction:str, cache_line:CacheLine, tag:int):
+        """Checks if tag matches and miss type if any
+
+        Args:
+            instruction (str): intruction type
+            cache_line (CacheLine): address cache line
+            tag (int): tag from the new address
+
+        Raises:
+            ValueError: if unknown instruction type
+
+        Returns:
+            bool: True for tag hit, False otehrwise
+        """
+        # -- check if tag hit
+        tag_hit = tag==cache_line.address_tag                                                       # do tags match
+        # >> check compulsory miss
+        if(cache_line.first_access==True):
+            self.tracker.compulsory_miss += 1                                                       # >> compulsory miss 
+            cache_line.first_access = False                                                         # >> already accesed
+        # >> gather stats per instruction
+        if (instruction=='R'):
+            # -- check if tag hit
+            tag_hit = (tag==cache_line.address_tag)                                                 # do tags match
+            # -- check if it's a replacement writeback
+            if(tag!=cache_line.address_tag and cache_line.currentState==LineState.MODIFIED):
+                self.tracker.replacement_writebacks_i = 1
+            return tag_hit
+        elif (instruction=='W'):
+            # -- check if it's a replacement writeback
+            if(tag!=cache_line.address_tag and cache_line.currentState==LineState.MODIFIED):
+                self.tracker.replacement_writebacks_i = 1
+            # >> check if conflict miss
+            if ((tag_hit==False) and (cache_line.currentState!=LineState.INVALID) \
+                                 and cache_line.first_access==False):
+                self.tracker.conflict_miss +=1 
+            return tag_hit
+        else:
+            raise ValueError('UNKNOWN INSTRUCTION TYPE')
+
+    
+    def _probe_and_change_state(self, instruction:str, address:int, cache_line:int, tag:int):
+        """Probes local cache and changes state depening on the instruction type
+
+        Args:
+            instruction (str): intruction type. Read (R) or Write (W)
+            address (int): current intruction address 
+            cache_line (int): cache line for address
+            tag (int): address tag
+
+        Raises:
+            ValueError: in case of unknown instruction
+        """
+        self._probe_cache(address=address)
+        cache_line.address_tag  = tag
+        if (instruction=='W'):
+            cache_line.currentState = LineState.MODIFIED
+            return
+        elif (instruction=='R'):
+            return
+        else:
+            raise ValueError('UNKNOWN INSTRUCTION TYPE')

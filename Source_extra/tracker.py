@@ -32,13 +32,19 @@ class Tracker:
         self.coherence_writebacks_i     = 0
         self.invalidations_sent_i       = 0
         self.average_latency_i          = 0
-        self.priv_average_latency_i     = False
-        self.rem_average_latency_i      = False
-        self.off_chip_averave_latency_i = False
         self.total_latency_i            = 0
         # -- extra
         self.compulsory_miss            = 0
         self.conflict_miss              = 0 
+        self.hops_1                     = 0
+        self.hops_2                     = 0
+        self.hops_3                     = 0
+        self.read_miss                  = 0
+        self.write_miss                 = 0
+        self.read_hit                   = 0
+        self.write_hit                  = 0
+        self.read_miss_no_sharers       = 0
+        self.write_miss_no_sharers      = 0
 
 
     def add_total_latency(self, latency):
@@ -101,6 +107,30 @@ class Tracker:
                     rem_avg_latency,
                     mem_avg_latency,
                     sum(self._total_latency)))
+        
+        print("EXTRA INFO                     \n\
+                Compulsory Misses:          {}\n\
+                Conflic Misses:             {}\n\
+                1 Hops                      {}\n\
+                2 Hops                      {}\n\
+                3 Hops                      {}\n\
+                Read Misses                 {}\n\
+                Write Misses                {}\n\
+                Read Hits                   {}\n\
+                Write Hits                  {}\n\
+                No Sharers on Read Miss     {}\n\
+                No Sharers on Write Miss    {}\n\
+            ".format(self.compulsory_miss
+                     , self.conflict_miss
+                     , self.hops_1
+                     , self.hops_2
+                     , self.hops_3
+                     , self.read_miss
+                     , self.write_miss
+                     , self.read_hit
+                     , self.write_hit
+                     , self.read_miss_no_sharers
+                     , self.write_miss_no_sharers))
 
 
     def _add_variables_to_history(self):
@@ -110,17 +140,11 @@ class Tracker:
         self._private_accesses.append(self.private_accesses_i)
         self._remote_accesses.append(self.remote_accesses_i)
         self._off_chip_access.append(self.off_chip_access_i)
-        # <!>
-        # self._total_accesses.append(sum(self._private_accesses) + sum(self._remote_accesses) + sum(self._off_chip_access),)
-        #<!>
         self._total_accesses.append(self.total_accesses_i)
         self._replacement_writebacks.append(self.replacement_writebacks_i)
         self._coherence_writebacks.append(self.coherence_writebacks_i)
         self._invalidations_sent.append(self.invalidations_sent_i)
-        # self._average_latency.append(self.average_latency_i)
-        self._priv_average_latency.append(self.priv_average_latency_i)
-        self._rem_average_latency.append(self.rem_average_latency_i)
-        self._off_chip_averave_latency.append(self.off_chip_averave_latency_i)
+
 
     def _reset_variables(self):
         """Reset varaibles for next instruciton line
@@ -133,9 +157,6 @@ class Tracker:
         self.coherence_writebacks_i     = 0
         self.invalidations_sent_i       = 0
         self.average_latency_i          = 0
-        self.priv_average_latency_i     = False
-        self.rem_average_latency_i      = False
-        self.off_chip_averave_latency_i = False
         self.total_latency_i            = 0
 
 
