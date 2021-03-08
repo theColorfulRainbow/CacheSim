@@ -1,8 +1,13 @@
 # Description
 This directory hold the extra functionality added to the code
 ## Changes
-- Implementation of the MESI Protocol: built on top of the MSI
-- Data can be forwarded both ways between processors
+- Depedning on input parameters it can run the following features:
+    - MSI 
+    - MESI
+    - Data forwarding in both directions
+- These determine what features are used:
+    - MESI (bool): False (default- will run MSI); True (if you want MESI)
+    - FLOPER (bool): False (default- one direction for data forwarding); True (forward and backward)
 
 # Results:
 ## Trace 1
