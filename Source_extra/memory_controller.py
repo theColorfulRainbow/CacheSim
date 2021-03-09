@@ -69,7 +69,7 @@ class MemoryController():
         # -- directory access
         self._dir_access()
         # -- find all and furthest sharers
-        sharer_ids, sharer_id_furthest, hops = self._find_sharers(cache_id=cache_id, address=address, instruction='R')
+        sharer_ids, sharer_id_furthest, hops = self._find_sharers(cache_id=cache_id, address=address, instruction='W')
         # -- no sharers == 0
         if len(sharer_ids)==0:
             # -- SHARED ?
@@ -161,8 +161,8 @@ class MemoryController():
                 if cache.check_match(address=address):
                     sharer_ids.append(cache.id)
         sharer_id_furthest, hops = self._find_furthest_sharer(cache_id=cache_id, sharer_ids=sharer_ids)
+        hops = 1 if (hops==3 and sys.argv[2]=="True") else hops
         self._track_miss(instruction=instruction, nr_sharers=len(sharer_ids), hops=hops)
-        hops = 1 if (hops==3 and sys.argv[2]==True) else hops
         return sharer_ids, sharer_id_furthest, hops
       
 

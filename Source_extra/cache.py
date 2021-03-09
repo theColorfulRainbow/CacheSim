@@ -146,7 +146,7 @@ class Cache():
             # -- write data to local cache
             self._write_to_local()
             return False                                                                            # miss
-        elif (cache_line.currentState==LineState.SHARED):                                           # SHARED state
+        elif (cache_line.currentState==LineState.SHARED and tag_hit==True):                         # SHARED state
             # -- message direcotry to invalidate copies 
             self._invalidate_copies(address=address, cache_line=cache_line)
             # -- probe local to change state

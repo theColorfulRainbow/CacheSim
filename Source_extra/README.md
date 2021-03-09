@@ -35,8 +35,8 @@ This directory hold the extra functionality added to the code
     - Write Misses                8328
     - Read Hits                   155000
     - Write Hits                  24440
-    - No Sharers on Read Miss     17018
-    - No Sharers on Write Miss    0
+    - No Sharers on Read Miss     8741
+    - No Sharers on Write Miss    8277
 ### Trace 2
 - Default info:
     - Private-accesses:         491511
@@ -62,8 +62,8 @@ This directory hold the extra functionality added to the code
     - Write Misses                41520
     - Read Hits                   456569
     - Write Hits                  34942
-    - No Sharers on Read Miss     544
-    - No Sharers on Write Miss    0
+    - No Sharers on Read Miss     277
+    - No Sharers on Write Miss    267
 
 ### Validation
 - Default info: 
@@ -90,7 +90,7 @@ This directory hold the extra functionality added to the code
     - Write Misses                6
     - Read Hits                   5
     - Write Hits                  2
-    - No Sharers on Read Miss     3
+    - No Sharers on Read Miss     1
     - No Sharers on Write Miss    0
 
 ## With Optimizations

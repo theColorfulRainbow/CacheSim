@@ -58,13 +58,14 @@ class Simulator():
             self.feed_line(i, line)
             # -- next command
             self.tracker.new_cmd()
-            # <!> DEBUG <!>
+            # <!> DEBUG <!> UNCOMMENT FOR LINE BY LINE RESULT TRACKING
             # stop = False
             # if self.tracker._invalidations_sent[-1]!=0 or stop==True:
-            self.log.info("\n \n{}) {}".format(i,line.strip()))
-            stop = True
-            self.tracker.show_results()
-            input()
+            # selft().log.info("\n \n{}) {}".format(i,line.strip()))
+            # stop = True
+            # self.tracker.show_results()
+            # input('Next Line)
+            # <!> DEUG <!> DEBUG ends here
 
     def feed_line(self, i:int, line):
         """Deals with each line accordingly
