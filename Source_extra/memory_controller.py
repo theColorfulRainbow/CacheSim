@@ -2,6 +2,7 @@
  Redered to as memory controller that allows communication between caches
 '''
 # import logging as log
+import sys 
 from Source_extra.cache import Cache, LineState, CacheLine
 from Source_extra.tracker import Tracker
 from Source_extra.utils import *
@@ -161,7 +162,7 @@ class MemoryController():
                     sharer_ids.append(cache.id)
         sharer_id_furthest, hops = self._find_furthest_sharer(cache_id=cache_id, sharer_ids=sharer_ids)
         self._track_miss(instruction=instruction, nr_sharers=len(sharer_ids), hops=hops)
-        hops = 1 if (hops==3 and FLOPS==True) else hops
+        hops = 1 if (hops==3 and sys.argv[2]==True) else hops
         return sharer_ids, sharer_id_furthest, hops
       
 

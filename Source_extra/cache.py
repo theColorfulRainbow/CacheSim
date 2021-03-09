@@ -1,4 +1,4 @@
-import collections, enum
+import collections, enum, sys
 from Source_extra.utils import *
 from Source_extra.tracker import Tracker
 
@@ -11,7 +11,7 @@ class LineState(enum.Enum):
     Returns:
         [Enum]: possible LineState
     """
-    if MESI==True:
+    if sys.argv[1]=='True':
         MODIFIED, SHARED, INVALID, EXCLUSIVE = range(4)                                     # MESI --> 0123
     else:
         MODIFIED, SHARED, INVALID = range(3)                                                # MESI --> 012
@@ -65,7 +65,7 @@ class Cache():
         self.memory_controller.add_cache(self)                                                      # add cache to memory
         self.tracker = tracker                                                                      # reference tracker
         self.lines = collections.defaultdict(CacheLine)                                             # dictionary collecction of cache lines
-        
+
 
     def _check_vaid_cache(self):
         """Cehck if cache parameters are valid and get proper bit length if so.
@@ -339,18 +339,13 @@ class Cache():
         if(cache_line.first_access==True):
             self.tracker.compulsory_miss += 1                                                       # >> compulsory miss 
             cache_line.first_access = False                                                         # >> already accesed
+        # -- check if it's a replacement writeback
+        if(tag!=cache_line.address_tag and cache_line.currentState==LineState.MODIFIED):
+            self.tracker.replacement_writebacks_i = 1
         # >> gather stats per instruction
         if (instruction=='R'):
-            # -- check if tag hit
-            tag_hit = (tag==cache_line.address_tag)                                                 # do tags match
-            # -- check if it's a replacement writeback
-            if(tag!=cache_line.address_tag and cache_line.currentState==LineState.MODIFIED):
-                self.tracker.replacement_writebacks_i = 1
             return tag_hit
         elif (instruction=='W'):
-            # -- check if it's a replacement writeback
-            if(tag!=cache_line.address_tag and cache_line.currentState==LineState.MODIFIED):
-                self.tracker.replacement_writebacks_i = 1
             # >> check if conflict miss
             if ((tag_hit==False) and (cache_line.currentState!=LineState.INVALID) \
                                  and cache_line.first_access==False):

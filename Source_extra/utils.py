@@ -4,9 +4,6 @@ import logging as log
 File with useful functions to be used in project
 '''
 
-MESI = False                # MESI Protocol
-FLOPS = False               # hops can go both directions
-
 def get_bit_length(_int):
     """returns bith length of the integer bit representation
 

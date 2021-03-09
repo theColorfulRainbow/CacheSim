@@ -10,7 +10,63 @@ This directory hold the extra functionality added to the code
     - FLOPER (bool): False (default- one direction for data forwarding); True (forward and backward)
 
 # Results:
-## Trace 1
+## No Optimizations:
+### Trace 1
+- Default info
+    - Private-accesses:         179440
+    - Remote-accesses:          8427
+    - Off-chip-accesses:        8741
+    - Total-accesses:           196608
+    - Replacement-writebacks:   6357
+    - Coherence-writebacks:     51
+    - Invalidations-sent:       51
+    - Average-latency:          3.718292236328125
+    - Priv-average-latency:     2.0
+    - Rem-average-latency:      14.082947668209327
+    - Off-chip-average-latency: 29.0
+    - Total-latency:            731046
+- EXTRA INFO
+    - Compulsory Misses:          2048
+    - Conflic Misses:             0
+    - 1 Hops                      150
+    - 2 Hops                      0
+    - 3 Hops                      0
+    - Read Misses                 8840
+    - Write Misses                8328
+    - Read Hits                   155000
+    - Write Hits                  24440
+    - No Sharers on Read Miss     17018
+    - No Sharers on Write Miss    0
+### Trace 2
+- Default info:
+    - Private-accesses:         491511
+    - Remote-accesses:          91537
+    - Off-chip-accesses:        507
+    - Total-accesses:           583555
+    - Replacement-writebacks:   0
+    - Coherence-writebacks:     39537
+    - Invalidations-sent:       52559
+    - Average-latency:          5.1703369862309465
+    - Priv-average-latency:     2.0
+    - Rem-average-latency:      22.061581655505424
+    - Off-chip-average-latency: 29.0
+    - Total-latency:            3017176
+
+- EXTRA INFO
+    - Compulsory Misses:          1552
+    - Conflic Misses:             0
+    - 1 Hops                      22512
+    - 2 Hops                      31378
+    - 3 Hops                      37610
+    - Read Misses                 50524
+    - Write Misses                41520
+    - Read Hits                   456569
+    - Write Hits                  34942
+    - No Sharers on Read Miss     544
+    - No Sharers on Write Miss    0
+    
+## With Optimizations
+### Trace 1
 - Private-accesses:         187717
 - Remote-accesses:          150
 - Off-chip-accesses:        8741
@@ -24,7 +80,7 @@ This directory hold the extra functionality added to the code
 - Off-chip-average-latency: 29.0
 - Total-latency:            631722
 
-## Trace 2
+### Trace 2
 - Private-accesses:         491548
 - Remote-accesses:          91500
 - Off-chip-accesses:        507
