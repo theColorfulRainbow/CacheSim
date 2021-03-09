@@ -64,7 +64,35 @@ This directory hold the extra functionality added to the code
     - Write Hits                  34942
     - No Sharers on Read Miss     544
     - No Sharers on Write Miss    0
-    
+
+### Validation
+- Default info: 
+    - Private-accesses:         7
+    - Remote-accesses:          8
+    - Off-chip-accesses:        3
+    - Total-accesses:           18
+    - Replacement-writebacks:   2
+    - Coherence-writebacks:     1
+    - Invalidations-sent:       6
+    - Average-latency:          14.722222222222221
+    - Priv-average-latency:     2.0
+    - Rem-average-latency:      20.5
+    - Off-chip-average-latency: 29.0
+    - Total-latency:            265
+
+- EXTRA INFO
+    - Compulsory Misses:          4
+    - Conflic Misses:             2
+    - 1 Hops                      5
+    - 2 Hops                      1
+    - 3 Hops                      2
+    - Read Misses                 5
+    - Write Misses                6
+    - Read Hits                   5
+    - Write Hits                  2
+    - No Sharers on Read Miss     3
+    - No Sharers on Write Miss    0
+
 ## With Optimizations
 ### Trace 1
 - Private-accesses:         187717

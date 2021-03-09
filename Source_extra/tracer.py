@@ -61,10 +61,10 @@ class Simulator():
             # <!> DEBUG <!>
             # stop = False
             # if self.tracker._invalidations_sent[-1]!=0 or stop==True:
-            #     self.log.info("\n \n{}) {}".format(i,line.strip()))
-            #     stop = True
-            #     self.tracker.show_results()
-            #     input()
+            self.log.info("\n \n{}) {}".format(i,line.strip()))
+            stop = True
+            self.tracker.show_results()
+            input()
 
     def feed_line(self, i:int, line):
         """Deals with each line accordingly

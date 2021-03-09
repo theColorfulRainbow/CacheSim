@@ -184,6 +184,9 @@ class Cache():
                             cache_lines=self.cache_lines,cache_line_size=self.cache_line_size)
         cache_line = self.lines[line_id]                                                            # cache line from address            
         if ((cache_line.currentState!=LineState.INVALID) and (tag==cache_line.address_tag)):
+            # > coherence writeback
+            # if (cache_line.currentState==LineState.MODIFIED):        #<!> DEBUG <!> was in read_miss only
+            #     self.tracker.coherence_writebacks_i = 1
             cache_line.currentState = LineState.INVALID
             
  
