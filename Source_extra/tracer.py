@@ -1,5 +1,4 @@
-import os
-# import logging as log
+import os, logging
 
 from Source_extra.utils import *
 from Source_extra.cache import Cache
@@ -22,6 +21,9 @@ class Simulator():
         self.memory_controller = MemoryController(tracker=self.tracker, logger_=self.log)                   
         self.cache_line_size   = get_bit_length(CACHE_LINE_SIZE)
         self.cache_lines       = get_bit_length(CACHE_LINES) 
+        self.v = False                                                              # log debug
+        self.hits_nr = 0
+        self.instruciton_nr = 0
         # initialise caches
         for i in range(NUMBER_OF_PROCESSORS):
             self.caches.append(Cache(tracker=self.tracker, memory_controller=self.memory_controller, 
@@ -53,19 +55,13 @@ class Simulator():
         """
         # -- Strips the newline character
         for i,line in enumerate(self.traceFile_Lines):
-            self.log.debug("\n \n{}) {}".format(i,line.strip()))
+            self.log.debug('\n\n')
+            self.log.debug("{}) {}".format(i,line.strip()))
             # -- feed current command
             self.feed_line(i, line)
             # -- next command
             self.tracker.new_cmd()
-            # <!> DEBUG <!> UNCOMMENT FOR LINE BY LINE RESULT TRACKING
-            # stop = False
-            # if self.tracker._invalidations_sent[-1]!=0 or stop==True:
-            # selft().log.info("\n \n{}) {}".format(i,line.strip()))
-            # stop = True
-            # self.tracker.show_results()
-            # input('Next Line)
-            # <!> DEUG <!> DEBUG ends here
+            
 
     def feed_line(self, i:int, line):
         """Deals with each line accordingly
@@ -74,17 +70,53 @@ class Simulator():
             i (int): current line number in trace file
             line (int): current instruction at line number
         """
-        if (len(line)==1):                                                          # v, p or h
-            pass
-        if (len(line)>1):                                                           # read and write 
+        if (len(line)<=2 and len(line)>0):                                          # v, p or h
+            parts = line.split()
+            if parts[0] == "v":
+                self.v = not self.v
+                if (self.v==True):
+                    self.log.setLevel(logging.DEBUG)
+                else:
+                    self.log.setLevel(logging.INFO)
+                self.log.debug('cmd = {}'.format(parts[0]))
+                return
+            elif parts[0] == "p":
+                self.log.debug('cmd = {}'.format(parts[0]))
+                for cache in self.caches:
+                    print(cache)
+                return
+            elif parts[0] == "h":
+                self.log.debug('cmd = {}'.format(parts[0]))
+                hit_rate = 0 if(self.instruciton_nr==0) else (self.hits_nr/self.instruciton_nr)
+                self.log.info('\nINSTRUCTIONS: {}; HITS: {}; HIT RATE: {}'\
+                            .format(self.instruciton_nr, self.hits_nr, hit_rate))
+                return
+            else:
+                self.log.warning("UNKNOWN TRACE FILE INSTRUCTION OR FORMATING ERROR: {}\n\
+                                                        SKIPPING Instruction".format(line))
+                return
+        elif (len(line)>2):                                                           # read and write 
             parts = line.split()
             # -- split commands args
             cache_id, operation, address = int(parts[0][1:]), parts[1], int(parts[2])
             # assign to correct cache
             if operation == "R":
-                self.caches[cache_id].read(address=address)
-            elif operation == "W":
-                self.caches[cache_id].write(address=address)
-            else:
-                self.log.warning("ERROR: Unknown access type: {}" .format(operation))
+                hit = self.caches[cache_id].read(address=address)
+                self.instruciton_nr += 1
+                self.hits_nr += 1 if (hit==True) else 0
                 return
+            elif operation == "W":
+                hit = self.caches[cache_id].write(address=address)
+                self.instruciton_nr += 1
+                self.hits_nr += 1 if (hit==True) else 0
+                return
+            else:
+                self.log.warning("ERROR: Unknown access type or formating: {}\n\
+                                    MIGHT BE DUE TO WHITE SPACE" .format(operation))
+                return
+        elif (len(line)==0):
+            log.warning("EMPTY LINE DETECTED: {}){}\nSKIPPING".format(i,line))
+            return
+        else:
+            log.warning("UNREADABLE LINE: {}) {}\nSKIPPING".format(i,line))
+            return

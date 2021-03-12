@@ -2,6 +2,7 @@ import collections, enum, sys
 from Source_extra.utils import *
 from Source_extra.tracker import Tracker
 
+
 class LineState(enum.Enum):
     """Class holding possible states of a cache
 
@@ -17,6 +18,7 @@ class LineState(enum.Enum):
         MODIFIED, SHARED, INVALID = range(3)                                                # MESI --> 012
         EXCLUSIVE = SHARED                                                                  
 
+    @classmethod
     def to_str(self,state):
         if(state==LineState.MODIFIED):
             return "MODIFIED"
@@ -27,7 +29,10 @@ class LineState(enum.Enum):
         if(state==LineState.EXCLUSIVE):
             return "EXCLUSIVE"
         else:
-            raise ValueError("Invalide state type: {}".format(state))
+            return None
+            # log.debug("Invalide state type: {}".format(state))
+            # raise ValueError("Invalide state type: {}".format(state))
+
 
 class CacheLine():
     """Class representing a line inside the Cache.
@@ -52,7 +57,8 @@ class CacheLine():
     
     def __repr__(self):
         return '[tag={};state_now={},state_before={}]'.format(
-            self.address_tag, self.currentState, self.lastState)
+            self.address_tag, LineState.to_str(self.currentState), LineState.to_str(self.lastState))
+
 
 class Cache():
 
@@ -78,8 +84,14 @@ class Cache():
         
 
     def __repr__(self):
-        return 'id: {}; nr lines: {}; line size: {}'.format(self.id, len(self.lines), 4)
-
+        str_out = '\nCACHE ID: {}; nr lines: {}; line size: {}\n'.format(self.id, len(self.lines), 4)
+        for idx in range(0,512):
+            cache_line = self.lines[idx]
+            if cache_line.lastState != None:
+                str_out += 'idx: {}; {}\n'.format(idx, cache_line)
+        str_out += '-'*50 + '\n\n'
+        return str_out
+        
         
     def read(self, address:int):
         """Read instruction given to cache
@@ -100,6 +112,8 @@ class Cache():
         tag_hit = self._check_miss_type(instruction='R', cache_line=cache_line, tag=tag)
         # -- READ PROTOCOL
         if (cache_line.currentState==LineState.INVALID) or (tag_hit==False):                        # line is Invalid --> miss
+            # <!> LOG
+            self.log.debug('READ MISS')
             # -- memory request data to read
             self._read_request_data(cache_line=cache_line, address=address)
             # -- probe cache to change state
@@ -107,15 +121,17 @@ class Cache():
             # -- read data from local cache
             self._read_data()
             # -- done command
-            return tag_hit                                                                          # miss
+            return False                                                                            # miss
         elif (cache_line.currentState!=LineState.INVALID) and (tag_hit==True):
+            # <!> LOG
+            self.log.debug('READ HIT')
             # -- read data from local cache
             self._read_data()
             # -- set new tag at address
             cache_line.address_tag = tag
             # > track hit
             self._track_hit(instruction='R')
-            return tag_hit                                                                          # hit
+            return True                                                                             # hit
         else :                                                                                      # invalid state 
             raise ValueError('Invalid state: {}; at cache line: {}'.format(cache_line.currentState,line_id))
 
@@ -139,6 +155,8 @@ class Cache():
         tag_hit = self._check_miss_type(instruction='W',cache_line=cache_line,tag=tag)
         # -- WRITE protocol
         if (cache_line.currentState==LineState.INVALID) or (tag_hit==False):                        # INVALID state or tag missmatch
+            # <!> LOG
+            self.log.debug('WRITE INVALID OR TAG MISSMATCH --> WRITE MISS')
             # -- message direcotry to invalidate copies
             self._invalidate_copies(address=address, cache_line=cache_line)
             # -- probe local to change state
@@ -147,6 +165,8 @@ class Cache():
             self._write_to_local()
             return False                                                                            # miss
         elif (cache_line.currentState==LineState.SHARED and tag_hit==True):                         # SHARED state
+            # <!> LOG
+            self.log.debug('WRITE SHARED --> WRITE MISS')
             # -- message direcotry to invalidate copies 
             self._invalidate_copies(address=address, cache_line=cache_line)
             # -- probe local to change state
@@ -156,7 +176,9 @@ class Cache():
             return False                                                                            # miss
         elif(cache_line.currentState==LineState.MODIFIED \
                 or cache_line.currentState==LineState.EXCLUSIVE) and (tag_hit==True):               # MODIFIED state and tag match
-            # <!> always set to MODIFIED
+            # <!> LOG
+            self.log.debug('WRITE HIT')
+            # -!- always set to MODIFIED
             cache_line.currentState = LineState.MODIFIED                                            # always in Modified state
             # -- write data to local cache
             self._write_to_local()
@@ -255,6 +277,9 @@ class Cache():
         Raises:
             ValueError: invalid instruciton type
         """
+        # <!> LOG
+        self.log.debug('')
+        # -- function
         self.tracker.private_accesses_i = 1
         if(instruction=='W'):
             self.tracker.write_hit += 1
@@ -273,6 +298,9 @@ class Cache():
             address (int): current address
             cache_line (CacheLine): current cacahe line
         """
+        # <!> LOG
+        self.log.debug('')
+        # -- function
         self.tracker.write_miss += 1
         self.tracker.add_total_latency(latency=5)                                                   # add latency
         self.memory_controller.write_miss(cache_id=self.id, address=address,                        # hop to directory
@@ -283,6 +311,9 @@ class Cache():
         """Simulates Writing data to loacl cache
         1 cycle
         """
+        # <!> LOG
+        self.log.debug('')
+        # -- function
         self.tracker.add_total_latency(latency=1)                                                   # add latency
 
 
@@ -293,6 +324,9 @@ class Cache():
         Args:
             cache_line (CacheLine): cacheline of address
         """
+        # <!> LOG
+        self.log.debug('')
+        # -- function
         self.tracker.read_miss += 1
         self.tracker.add_total_latency(latency=5)                                                   # add latency
         self.memory_controller.read_miss(cache_id=self.id, address=address, cache_line=cache_line)  # hop to directory
@@ -302,12 +336,18 @@ class Cache():
         """Read data from local cache
         1 cycle
         """
+        # <!> LOG
+        self.log.debug('')
+        # -- function
         self.tracker.add_total_latency(latency=1)                                                   # add latencys
 
     def _probe_cache(self,address: int):
         """Probing local cache to match tag and check state
         1 cycle
         """
+        # <!> LOG
+        self.log.debug('')
+        # -- function
         self.tracker.add_total_latency(latency=1)                                                   # add latency
         tag, line_id, offset  = extraxct_from_address( address=address,                             # cache probe 
                                 cache_lines=self.cache_lines,cache_line_size=self.cache_line_size)
@@ -319,6 +359,9 @@ class Cache():
         Args:
             hops (int): number of processors to hop
         """
+        # <!> LOG
+        self.log.debug('')
+        # -- function
         self.tracker.add_total_latency(latency=hops*3)                                              # add latency
 
 
@@ -370,6 +413,9 @@ class Cache():
         Raises:
             ValueError: in case of unknown instruction
         """
+        # <!> LOG
+        self.log.debug('')
+        # -- function
         self._probe_cache(address=address)
         cache_line.address_tag  = tag
         if (instruction=='W'):

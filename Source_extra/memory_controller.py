@@ -42,6 +42,8 @@ class MemoryController():
             self.tracker.off_chip_access_i = 1
             # -- propagate read miss
             self._propragate_read_miss(cache_id=cache_id, address=address)
+            # <!> LOG
+            self.log.debug('NO SHARERS')
             return
         # -- no sharers > 0
         elif len(sharer_ids)>0:
@@ -53,6 +55,8 @@ class MemoryController():
             self.tracker.remote_accesses_i = 1
             # -- propagate read miss
             self._propragate_read_miss(cache_id=cache_id, address=address)
+            # <!> LOG
+            self.log.debug('{} SHARERS'.format(len(sharer_ids)))
             return
         # <!> something went wrong
         else:
@@ -72,6 +76,8 @@ class MemoryController():
         sharer_ids, sharer_id_furthest, hops = self._find_sharers(cache_id=cache_id, address=address, instruction='W')
         # -- no sharers == 0
         if len(sharer_ids)==0:
+            # <!> LOG
+            self.log.debug('NO SHARERS')
             # -- SHARED ?
             if state==LineState.SHARED:
                 # -- respond there are no sharers: 5 cycles
@@ -97,6 +103,8 @@ class MemoryController():
                 raise ValueError('MEMORY CONTROLLER WRITE MISS\nNO SHARERS\nNOT ACCOUNTED FOR STATE: {}'.format(state))
         # -- nr sharers == 1
         elif (len(sharer_ids)==1) and (state!=LineState.SHARED):
+            # <!> LOG
+            self.log.debug('1 SHARER')
             # -- send message to invalidate and forward when one sharer only
             self._message_furthest_to_forward_write_single(sharer_id_furthest=sharer_id_furthest, address=address, hops=hops)
             # > remote access
@@ -106,6 +114,8 @@ class MemoryController():
             return
         # -- nr sharers > 1 
         elif (len(sharer_ids)>1) or (state==LineState.SHARED):
+            # <!> LOG
+            self.log.debug('{} SHARERS'.format(len(sharer_ids)))
             # -- send message to invalidate and forward when one sharer only
             self._message_furthest_to_forward_write_multi(sharer_id_furthest=sharer_id_furthest, address=address, hops=hops)
             # > remote access
@@ -121,6 +131,9 @@ class MemoryController():
     def _propragate_write_miss(self,sharer_ids:int, cache_id:int, address:int):
         """Sends invalidations when a write miss occurs
         """
+        # <!> LOG
+        self.log.debug('')
+        # -- function
         # > invalidations sent
         self.tracker.invalidations_sent_i = len(sharer_ids)
         # -- invalidate copies
@@ -132,6 +145,9 @@ class MemoryController():
     def _propragate_read_miss(self, cache_id:int, address:int):
         """Informs other sharers of a read miss in local cache
         """
+        # <!> LOG
+        self.log.debug('')
+        # -- function
         for cache in self.caches:
             if cache.id != cache_id:                                                    # notidy only other caches
                 cache.propagate_read_miss(address=address)
@@ -141,6 +157,7 @@ class MemoryController():
         """Records the direcotry access
         1 cycle
         """
+        self.log.debug('')
         self.tracker.add_total_latency(latency=1)
 
 
@@ -155,6 +172,9 @@ class MemoryController():
         Returns:
             list: lsit of sharer ids, futhest sharer id, no of hops
         """
+        # <!> LOG
+        self.log.debug('')
+        # -- function
         sharer_ids = []
         for cache in self.caches:
             if cache.id != cache_id:
@@ -233,6 +253,7 @@ class MemoryController():
         """Simulates taking data from mem
         15 cycles
         """
+        self.log.debug('')
         self.tracker.add_total_latency(latency=15)
 
 
@@ -240,6 +261,7 @@ class MemoryController():
         """Simulates esnding data to cache
         5 cycles
         """
+        self.log.debug('')
         self.tracker.add_total_latency(latency=5)
 
 
@@ -249,6 +271,9 @@ class MemoryController():
         Args:
             sharer_id_furthest (int): id of furthests
         """
+        # <!> LOG
+        self.log.debug('')
+        # -- function
         self.tracker.add_total_latency(latency=5)                                                               # add latency
         for cache in self.caches:
             if cache.id == sharer_id_furthest:
@@ -263,6 +288,9 @@ class MemoryController():
             address (int): current address
             hops (int): how many processors to hop
         """
+        # <!> LOG
+        self.log.debug('')
+        # -- function
         self.tracker.add_total_latency(latency=5)                                                               # add latency
         for cache in self.caches:
             if cache.id == sharer_id_furthest:
@@ -277,6 +305,9 @@ class MemoryController():
             address (int): current address
             hops (int): how many processors to hop
         """
+        # <!> LOG
+        self.log.debug('')
+        # -- function
         self.tracker.add_total_latency(latency=5)                                                               # add latency
         for cache in self.caches:
             if cache.id == sharer_id_furthest:
@@ -287,4 +318,8 @@ class MemoryController():
         """Simulates directory responding to cache that there are no sharers. On write miss
         5 cycles
         """
+        # <!> LOG
+        self.log.debug('')
+        # -- function
+        self.log.debug('')
         self.tracker.add_total_latency(latency=5)

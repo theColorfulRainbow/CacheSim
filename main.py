@@ -3,7 +3,7 @@ import os, sys
 from Source_extra.tracer import Simulator as Simulator_extra
 import logging 
 log = logging.getLogger('root')
-FORMAT = "[%(funcName)15s():%(lineno)s]::%(message)s"
+FORMAT = "[%(funcName)s():%(lineno)s]::%(message)s"
 logging.basicConfig(format=FORMAT)
 log.setLevel(logging.INFO)
 log.debug('Finished importing')
